@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Flashcard App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+        }
+        
+        input, button {
+            margin: 5px;
+            padding: 8px;
+            font-size: 14px;
+        }
+        
+        button {
+            cursor: pointer;
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+        }
+        
+        button:hover {
+            background: #e0e0e0;
+        }
+        
+        .group-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f9f9f9;
+            border: 1px solid #eee;
+        }
+        
+        .card-item {
+            margin: 5px 0;
+            padding: 8px;
+            background: #fff;
+            border: 1px solid #ddd;
+        }
+        
+        .test-area {
+            text-align: center;
+            padding: 20px;
+            background: #f5f5f5;
+            margin: 10px 0;
+        }
+        
+        .flashcard {
+            border: 2px solid #333;
+            padding: 30px;
+            margin: 20px 0;
+            background: white;
+            min-height: 100px;
+            font-size: 18px;
+        }
+        
+        .card-question {
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .card-answer {
+            padding: 10px;
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+            margin-top: 10px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simple Flashcard App</h1>
+    
+    <div id="statusMessage"></div>
+    
+    <!-- Create Group Section -->
+    <div class="section">
+        <h2>Create New Group</h2>
+        <input type="text" id="groupName" placeholder="Enter group name">
+        <button onclick="createGroup()">Create Group</button>
+    </div>
+    
+    <!-- Groups List -->
+    <div class="section">
+        <h2>Your Groups</h2>
+        <div id="groupsList"></div>
+    </div>
+    
+    <!-- Group Details -->
+    <div id="groupDetails" class="section hidden">
+        <h2 id="groupTitle"></h2>
+        
+        <!-- Add Card -->
+        <div id="addCardSection">
+            <h3>Add New Card</h3>
+            <input type="text" id="cardKey" placeholder="Question/Key">
+            <input type="text" id="cardValue" placeholder="Answer/Value">
+            <button onclick="addCard()">Add Card</button>
+        </div>
+        
+        <!-- Cards List -->
+        <div id="cardsListSection">
+            <h3>Cards in this group</h3>
+            <div id="cardsList"></div>
+        </div>
+        
+        <!-- Test Section -->
+        <div class="test-area">
+            <button onclick="startTest()">Start Test</button>
+            <div id="testCard" class="hidden">
+                <div class="flashcard">
+                    <div class="card-question" id="cardQuestion"></div>
+                    <button onclick="toggleAnswer()" id="answerBtn">Show Answer</button>
+                    <div id="cardAnswer" class="card-answer hidden"></div>
+                </div>
+                <button onclick="nextCard()">Next Card</button>
+                <button onclick="endTest()">End Test</button>
+            </div>
+        </div>
+        
+        <button onclick="goBack()">Back to Groups</button>
+    </div>
+
+    <script>
+        let flashcards = {};
+        let currentGroup = '';
+        let testCards = [];
+        let currentTestIndex = 0;
+        let showingAnswer = false;
+        
+        const API_BASE = '/api';
+
+        // Show status message
+        function showStatus(message, isError = false) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${isError ? 'error' : 'success'}`;
+            
+            // Hide after 3 seconds
+            setTimeout(() => {
+                statusDiv.textContent = '';
+                statusDiv.className = '';
+            }, 3000);
+        }
+
+        // Load data from backend
+        async function loadData() {
+            try {
+                const response = await fetch(`${API_BASE}/flashcards`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                flashcards = data || {};
+                displayGroups();
+                showStatus('Data loaded successfully');
+            } catch (error) {
+                console.error('Error loading data:', error);
+                flashcards = {};
+                displayGroups();
+                showStatus('Error loading data from server', true);
+            }
+        }
+
+        // Save data to backend
+        async function saveData() {
+            try {
+                const response = await fetch(`${API_BASE}/save`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(flashcards)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('Data saved successfully');
+                showStatus('Data saved successfully');
+                return true;
+            } catch (error) {
+                console.error('Error saving data:', error);
+                showStatus('Error saving data to server', true);
+                return false;
+            }
+        }
+
+        function createGroup() {
+            const groupName = document.getElementById('groupName').value.trim();
+            if (!groupName) {
+                alert('Please enter a group name');
+                return;
+            }
+            
+            if (flashcards[groupName]) {
+                alert('Group already exists');
+                return;
+            }
+            
+            flashcards[groupName] = [];
+            document.getElementById('groupName').value = '';
+            saveData();
+            displayGroups();
+        }
+
+        function displayGroups() {
+            const groupsList = document.getElementById('groupsList');
+            groupsList.innerHTML = '';
+            
+            for (const groupName in flashcards) {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'group-item';
+                groupDiv.innerHTML = `
+                    <strong>${groupName}</strong> (${flashcards[groupName].length} cards)
+                    <button onclick="viewGroup('${groupName}')">View</button>
+                    <button onclick="deleteGroup('${groupName}')">Delete Group</button>
+                `;
+                groupsList.appendChild(groupDiv);
+            }
+            
+            if (Object.keys(flashcards).length === 0) {
+                groupsList.innerHTML = '<p>No groups created yet.</p>';
+            }
+        }
+
+        async function deleteGroup(groupName) {
+            if (confirm(`Are you sure you want to delete the group "${groupName}"?`)) {
+                delete flashcards[groupName];
+                await saveData();
+                displayGroups();
+                
+                // If currently viewing this group, go back to groups list
+                if (currentGroup === groupName) {
+                    goBack();
+                }
+            }
+        }
+
+        function viewGroup(groupName) {
+            currentGroup = groupName;
+            document.getElementById('groupTitle').textContent = `Group: ${groupName}`;
+            document.getElementById('groupsList').parentElement.classList.add('hidden');
+            document.getElementById('groupDetails').classList.remove('hidden');
+            displayCards();
+        }
+
+        async function addCard() {
+            const key = document.getElementById('cardKey').value.trim();
+            const value = document.getElementById('cardValue').value.trim();
+            
+            if (!key || !value) {
+                alert('Please enter both question and answer');
+                return;
+            }
+            
+            flashcards[currentGroup].push({ key, value });
+            document.getElementById('cardKey').value = '';
+            document.getElementById('cardValue').value = '';
+            await saveData();
+            displayCards();
+        }
+
+        function displayCards() {
+            const cardsList = document.getElementById('cardsList');
+            cardsList.innerHTML = '';
+            
+            flashcards[currentGroup].forEach((card, index) => {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'card-item';
+                cardDiv.innerHTML = `
+                    <strong>Q:</strong> ${card.key}<br>
+                    <strong>A:</strong> ${card.value}
+                    <button onclick="deleteCard(${index})">Delete</button>
+                `;
+                cardsList.appendChild(cardDiv);
+            });
+            
+            if (flashcards[currentGroup].length === 0) {
+                cardsList.innerHTML = '<p>No cards in this group yet.</p>';
+            }
+        }
+
+        async function deleteCard(index) {
+            flashcards[currentGroup].splice(index, 1);
+            await saveData();
+            displayCards();
+        }
+
+        function startTest() {
+            if (flashcards[currentGroup].length === 0) {
+                alert('No cards to test! Add some cards first.');
+                return;
+            }
+            
+            testCards = [...flashcards[currentGroup]];
+            shuffleArray(testCards);
+            currentTestIndex = 0;
+            showingAnswer = false;
+            
+            // Hide the cards list and add card section during test
+            document.getElementById('addCardSection').classList.add('hidden');
+            document.getElementById('cardsListSection').classList.add('hidden');
+            
+            document.getElementById('testCard').classList.remove('hidden');
+            showCurrentCard();
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function showCurrentCard() {
+            if (currentTestIndex >= testCards.length) {
+                alert('Test completed! All cards reviewed.');
+                endTest();
+                return;
+            }
+            
+            const card = testCards[currentTestIndex];
+            document.getElementById('cardQuestion').textContent = card.key;
+            document.getElementById('cardAnswer').textContent = card.value;
+            document.getElementById('cardAnswer').classList.add('hidden');
+            document.getElementById('answerBtn').textContent = 'Show Answer';
+            showingAnswer = false;
+        }
+
+        function toggleAnswer() {
+            const answerDiv = document.getElementById('cardAnswer');
+            const answerBtn = document.getElementById('answerBtn');
+            
+            if (showingAnswer) {
+                answerDiv.classList.add('hidden');
+                answerBtn.textContent = 'Show Answer';
+                showingAnswer = false;
+            } else {
+                answerDiv.classList.remove('hidden');
+                answerBtn.textContent = 'Hide Answer';
+                showingAnswer = true;
+            }
+        }
+
+        function nextCard() {
+            currentTestIndex++;
+            showCurrentCard();
+        }
+
+        function endTest() {
+            document.getElementById('testCard').classList.add('hidden');
+            
+            // Show the cards list and add card section again
+            document.getElementById('addCardSection').classList.remove('hidden');
+            document.getElementById('cardsListSection').classList.remove('hidden');
+            
+            testCards = [];
+            currentTestIndex = 0;
+        }
+
+        function goBack() {
+            document.getElementById('groupDetails').classList.add('hidden');
+            document.getElementById('groupsList').parentElement.classList.remove('hidden');
+            currentGroup = '';
+            endTest(); // End any ongoing test
+        }
+
+        // Initialize the app
+        loadData();
+    </script>
+</body>
+</html>
