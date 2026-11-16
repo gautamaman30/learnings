@@ -77,3 +77,47 @@ from abc import ABC, abstractmethod
 # service.attach(AnalyticsService())
 
 # service.register_user("alice_dev")
+
+
+
+# Command pattern
+
+class BulbCommand(ABC):
+    @abstractmethod
+    def execute(self):
+        pass
+    
+class Bulb:
+    def turn_on(self):
+        print('Bulb is turned on')
+    
+    def turn_off(self):
+        print('Bulb is turned off')
+
+class TurnOn(BulbCommand):
+    def __init__(self, bulb: Bulb):
+        self.bulb = bulb
+    
+    def execute(self):
+        self.bulb.turn_on()
+
+class TurnOff(BulbCommand):
+    def __init__(self, bulb: Bulb):
+        self.bulb = bulb
+    
+    def execute(self):
+        self.bulb.turn_off()
+
+class RemoteControl:
+    def submit(self, command: BulbCommand):
+        command.execute()
+
+bulb = Bulb()
+turnOn = TurnOn(bulb)
+turnOff = TurnOff(bulb)
+
+
+remoteControl = RemoteControl()
+
+remoteControl.submit(turnOn)
+remoteControl.submit(turnOff)
