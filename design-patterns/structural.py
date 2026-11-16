@@ -29,30 +29,60 @@ from abc import ABC, abstractmethod
 
 # Decorator Pattern
 
-class DataService(ABC):
-    @abstractmethod
-    def fetch_data(self, query: str):
-        pass
+# class DataService(ABC):
+#     @abstractmethod
+#     def fetch_data(self, query: str):
+#         pass
     
-class CachingDecoratorService(DataService):
-    def __init__(self, service: DataService):
-        self._service = service
-        self._cache = {}
+# class CachingDecoratorService(DataService):
+#     def __init__(self, service: DataService):
+#         self._service = service
+#         self._cache = {}
     
-    def fetch_data(self, query: str):
-        if query in self._cache:
-            print('Using cached data for query', query)
-            return self._cache[query]
+#     def fetch_data(self, query: str):
+#         if query in self._cache:
+#             print('Using cached data for query', query)
+#             return self._cache[query]
 
-        response = self._service.fetch_data(query)
-        self._cache[query] = response
-        return response
+#         response = self._service.fetch_data(query)
+#         self._cache[query] = response
+#         return response
 
-class TaxDataService(DataService):
-    def fetch_data(self, query: str):
-        print('Fetching data for query', query)
-        return "Fetched data"
+# class TaxDataService(DataService):
+#     def fetch_data(self, query: str):
+#         print('Fetching data for query', query)
+#         return "Fetched data"
     
-service = CachingDecoratorService(TaxDataService())
-print(service.fetch_data('Tax 2026'))
-print(service.fetch_data('Tax 2026'))
+# service = CachingDecoratorService(TaxDataService())
+# print(service.fetch_data('Tax 2026'))
+# print(service.fetch_data('Tax 2026'))
+
+
+# Facade Pattern
+
+# class InventoryService:
+#     def check_inventory(self, productId: str):
+#         pass
+
+# class PaymentService:
+#     def process_payment(self, productId: str, amount: int):
+#         pass
+
+# class ShippingService:
+#     def ship_product(self, productId: str):
+#         pass
+
+# class CheckoutService:
+#     def __init__(self):
+#         self._inventoryService = InventoryService()
+#         self._paymentService = PaymentService()
+#         self._shippingService = ShippingService()
+    
+#     def order_checkout(self, productId: str, amount: str):
+#         self._inventoryService.check_inventory(productId)
+#         self._paymentService.process_payment(productId, amount)
+#         self._shippingService.ship_product(productId)
+#         print('Order placed')
+
+
+# CheckoutService().order_checkout('abcd12345', 500)
