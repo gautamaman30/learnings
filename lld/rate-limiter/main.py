@@ -77,3 +77,32 @@ def simulateTraffic(
 
 if __name__ == '__main__':
     simulateTraffic(callsPerMin=1000, minClientId=1, maxClientId=5, durationSeconds=60, threadCount=4)
+
+
+# ┌───────────────────────────────┐
+# │ RateLimitService              │
+# │ - strategy: RateLimitStrategy │  (injected via constructor)
+# │ - clientTiers: Map<clientId, Tier>
+# │ - tierConfig: TierConfig      │
+# │ + allowRequest(clientId): bool│
+# └───────────────┬───────────────┘
+#         uses    │         has
+#                 ▼          ┌────────────────────────────┐
+# ┌──────────────────────────┐   │ TierConfig                 │
+# │ «interface»              │   │ - limits: Map<Tier, Limit> │
+# │ RateLimitStrategy        │   │ + getLimit(tier): Limit    │
+# │ + allow(clientId, limit) │   └────────────────────────────┘
+# └──────────────────────────┘     enum Tier { FREE, PRO, MAX }
+#      ▲                ▲          Limit { maxRequests, windowMs }
+#      │ implements     │ implements
+# ┌──────────────────────────┐  ┌──────────────────────────┐
+# │ TokenBucketStrategy      │  │ SlidingWindowStrategy    │
+# │ - buckets: ConcurrentMap │  │ - windows: ConcurrentMap │
+# │   <clientId, BucketState>│  │   <clientId, WindowState>│
+# └────────────┬─────────────┘  └────────────┬─────────────┘
+#              │ has                         │ has
+# ┌──────────────────────────┐  ┌──────────────────────────┐
+# │ BucketState              │  │ WindowState              │
+# │ - tokens: double         │  │ - timestamps: Deque<long>│
+# │ - lastRefillMs: long     │  └──────────────────────────┘
+# └──────────────────────────┘
