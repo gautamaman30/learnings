@@ -2,7 +2,8 @@ import logging
 import random
 import time
 from rate_limiter_service import RateLimitService
-from rate_limiter_strategies.sliding_window import SlidingWindowStrategy
+# from rate_limiter_strategies.sliding_window import SlidingWindowStrategy
+from rate_limiter_strategies.token_bucket import TokenBucketStrategy
 from client_tier import clientTiers, TierConfig
 
 logging.basicConfig(
@@ -11,7 +12,7 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
-service = RateLimitService(SlidingWindowStrategy(), clientTiers, TierConfig)
+service = RateLimitService(TokenBucketStrategy(), clientTiers, TierConfig)
 
 def processRequest(clientId: int):
     return service.allowRequests(clientId)
